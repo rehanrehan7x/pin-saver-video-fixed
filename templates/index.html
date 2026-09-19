@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Pin Saver</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --fog: #E8ECF1;
+      --paper: #FFFFFF;
+      --ink: #172033;
+      --slate: #566078;
+      --cobalt: #2B4BFF;
+      --on-cobalt: #FFFFFF;
+      --line: #CBD3DF;
+      --error: #B3261E;
+      --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+      --body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --fog: #12161F;
+        --paper: #1C2231;
+        --ink: #EEF1F6;
+        --slate: #9AA5BA;
+        --cobalt: #8199FF;
+        --on-cobalt: #0E1430;
+        --line: #2C3549;
+        --error: #FF8A80;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--fog);
+      color: var(--ink);
+      font-family: var(--body);
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+    main { max-width: 1080px; margin: 0 auto; padding: 64px 24px 80px; }
+
+    h1 {
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: clamp(2.4rem, 1.2rem + 5vw, 4.25rem);
+      line-height: 1.02;
+      letter-spacing: -0.025em;
+      margin: 0 0 20px;
+      max-width: 15ch;
+    }
+    .lede { color: var(--slate); font-size: 1.125rem; max-width: 52ch; margin: 0 0 36px; }
+
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; overflow: hidden;
+      clip: rect(0 0 0 0); white-space: nowrap;
+    }
+
+    textarea {
+      display: block; width: 100%; max-width: 760px; min-height: 136px;
+      padding: 16px 18px; resize: vertical;
+      background: var(--paper); color: var(--ink);
+      border: 1.5px solid var(--line); border-radius: 14px;
+      font: inherit; line-height: 1.5;
+    }
+    textarea::placeholder { color: var(--slate); opacity: .75; }
+    textarea:focus-visible, button:focus-visible {
+      outline: 3px solid var(--cobalt); outline-offset: 2px;
+    }
+
+    .actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 16px; }
+    .hint { color: var(--slate); font-size: .9rem; }
+
+    button {
+      font: inherit; font-weight: 600; cursor: pointer;
+      padding: 12px 22px; border-radius: 10px; border: 1.5px solid transparent;
+      transition: transform .12s ease, opacity .12s ease;
+    }
+    button:active:not(:disabled) { transform: translateY(1px); }
+    button:disabled { opacity: .6; cursor: default; }
+    .primary { background: var(--cobalt); color: var(--on-cobalt); }
+    .secondary { background: transparent; color: var(--ink); border-color: var(--line); }
+    .secondary:hover:not(:disabled) { border-color: var(--slate); }
+
+    #status { min-height: 1.5em; margin: 22px 0 0; color: var(--slate); }
+    #status.is-error { color: var(--error); font-weight: 500; }
+
+    #toolbar { margin-top: 20px; }
+
+    /* Results: prints pinned to a board */
+    .board {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 40px 28px;
+      align-items: start;
+      margin-top: 32px;
+    }
+    .card { animation: drop .5s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i) * 70ms); }
+    @keyframes drop {
+      from { opacity: 0; transform: translateY(-16px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    .print {
+      position: relative;
+      background: var(--paper);
+      padding: 10px;
+      border-radius: 3px;
+      box-shadow: 0 1px 2px rgba(20, 30, 50, .18), 0 6px 18px rgba(20, 30, 50, .10);
+      transform: rotate(var(--tilt, 0deg));
+    }
+    .card:nth-child(3n + 1) .print { --tilt: -.7deg; }
+    .card:nth-child(3n + 2) .print { --tilt: .6deg; }
+    .print::before {
+      content: ""; position: absolute; top: -7px; left: 50%; width: 14px; height: 14px;
+      margin-left: -7px; border-radius: 50%; background: var(--cobalt);
+      box-shadow: 0 0 0 3px var(--paper), 0 2px 4px rgba(0, 0, 0, .3); z-index: 2;
+    }
+    .print img {
+      display: block; width: 100%; height: auto; max-height: 440px;
+      object-fit: cover; border-radius: 2px; background: var(--fog);
+    }
+    .kind {
+      position: absolute; left: 18px; bottom: 18px;
+      background: var(--paper); color: var(--ink);
+      font-size: .8rem; font-weight: 600; padding: 3px 9px; border-radius: 6px;
+    }
+
+    .caption { padding: 16px 4px 0; }
+    .title {
+      margin: 0 0 2px; font-weight: 600; font-size: .98rem; line-height: 1.35;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      overflow-wrap: anywhere;
+    }
+    .file { margin: 0 0 12px; color: var(--slate); font-size: .875rem; }
+    .caption button { width: 100%; }
+    .note { margin: 8px 0 0; font-size: .875rem; color: var(--error); }
+
+    .failed { border: 1.5px dashed var(--line); box-shadow: none; background: transparent; padding: 16px; transform: none; }
+    .failed::before { display: none; }
+    .failed .msg { margin: 0 0 8px; color: var(--error); font-weight: 500; }
+    .failed .src { margin: 0; color: var(--slate); font-size: .85rem; overflow-wrap: anywhere; }
+
+    footer { margin-top: 72px; color: var(--slate); font-size: .875rem; max-width: 60ch; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .card { animation: none; }
+      button { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Save the original file from any pin.</h1>
+      <p class="lede">Paste one or more Pinterest links, one per line. You get the full-size photo or the video, not the thumbnail.</p>
+    </header>
+
+    <form id="form" novalidate>
+      <label for="urls" class="sr-only">Pinterest pin links</label>
+      <textarea id="urls" autocomplete="off" spellcheck="false"
+        placeholder="https://www.pinterest.com/pin/1234567890/"></textarea>
+      <div class="actions">
+        <button type="submit" id="go" class="primary">Find media</button>
+        <span class="hint">pin.it short links work too. Ctrl + Enter submits.</span>
+      </div>
+    </form>
+
+    <p id="status" role="status" aria-live="polite"></p>
+
+    <div id="toolbar" hidden>
+      <button type="button" id="all" class="secondary"></button>
+    </div>
+
+    <section id="results" class="board" aria-label="Results"></section>
+
+    <footer>
+      Only save pins you have the right to use, and credit the creator. Files pass through the app on this computer and are deleted right after they're sent to your browser.
+    </footer>
+  </main>
+
+  <script>
+    const form = document.getElementById('form');
+    const field = document.getElementById('urls');
+    const goBtn = document.getElementById('go');
+    const statusEl = document.getElementById('status');
+    const board = document.getElementById('results');
+    const toolbar = document.getElementById('toolbar');
+    const allBtn = document.getElementById('all');
+
+    let found = []; // successful lookups, each with a .button element
+
+    function setStatus(text, isError = false) {
+      statusEl.textContent = text;
+      statusEl.classList.toggle('is-error', isError);
+    }
+
+    function el(tag, props = {}, ...children) {
+      const node = document.createElement(tag);
+      for (const [key, value] of Object.entries(props)) {
+        if (key === 'class') node.className = value;
+        else if (key in node) node[key] = value;
+        else node.setAttribute(key, value);
+      }
+      node.append(...children);
+      return node;
+    }
+
+    function plural(n, word) { return `${n} ${word}${n === 1 ? '' : 's'}`; }
+
+    function okCard(item, index) {
+      const print = el('div', { class: 'print' });
+      if (item.kind === 'video' && item.thumbnail) {
+        const video = el('video', {
+          src: item.url,
+          poster: item.thumbnail,
+          controls: true,
+          preload: 'metadata',
+          playsInline: true,
+          style: 'display:block;width:100%;max-height:440px;background:var(--fog);border-radius:2px;'
+        });
+        // The media URL is intentionally not exposed by the lookup API.
+        // Use the poster for a reliable preview and keep download server-side.
+        video.removeAttribute('src');
+        print.append(el('img', { src: item.thumbnail, alt: item.title, loading: 'lazy', referrerPolicy: 'no-referrer' }));
+      } else if (item.thumbnail) {
+        const img = el('img', { src: item.thumbnail, alt: item.title, loading: 'lazy', referrerPolicy: 'no-referrer' });
+        img.addEventListener('error', () => { img.style.minHeight = '140px'; img.removeAttribute('src'); });
+        print.append(img);
+      }
+      print.append(el('span', { class: 'kind' }, item.kind === 'video' ? 'Video' : 'Photo'));
+
+      const button = el('button', { type: 'button', class: 'primary' }, 'Download');
+      const note = el('p', { class: 'note', hidden: true });
+      button.addEventListener('click', () => saveItem(item));
+      item.button = button;
+      item.note = note;
+
+      const caption = el('div', { class: 'caption' },
+        el('p', { class: 'title' }, item.title),
+        el('p', { class: 'file' }, item.filename),
+        button, note);
+      return el('article', { class: 'card', style: `--i:${index}` }, print, caption);
+    }
+
+    function errorCard(item, index) {
+      return el('article', { class: 'card', style: `--i:${index}` },
+        el('div', { class: 'print failed' },
+          el('p', { class: 'msg' }, item.error || "This link couldn't be read."),
+          el('p', { class: 'src' }, item.input)));
+    }
+
+    function filenameFrom(response, fallback) {
+      const header = response.headers.get('Content-Disposition') || '';
+      const match = header.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+      return match ? decodeURIComponent(match[1]) : fallback;
+    }
+
+    async function saveItem(item) {
+      const { button, note } = item;
+      button.disabled = true;
+      button.textContent = 'Downloading…';
+      note.hidden = true;
+      try {
+        const response = await fetch('/download?url=' + encodeURIComponent(item.url));
+        if (!response.ok) {
+          let message = 'Download failed. Try again.';
+          try { message = (await response.json()).error || message; } catch (_) {}
+          throw new Error(message);
+        }
+        const blob = await response.blob();
+        const link = el('a', { href: URL.createObjectURL(blob), download: filenameFrom(response, item.filename) });
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(link.href), 15000);
+        button.textContent = 'Saved';
+        return true;
+      } catch (err) {
+        button.textContent = 'Download';
+        note.textContent = err.message;
+        note.hidden = false;
+        return false;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    function render(results) {
+      board.replaceChildren();
+      found = results.filter(r => r.ok);
+      results.forEach((item, i) => board.append(item.ok ? okCard(item, i) : errorCard(item, i)));
+
+      const failed = results.length - found.length;
+      if (!found.length) setStatus("None of those links could be read.", true);
+      else if (failed) setStatus(`Found ${plural(found.length, 'file')}. ${plural(failed, 'link')} couldn't be read.`);
+      else setStatus(`Found ${plural(found.length, 'file')}.`);
+
+      toolbar.hidden = found.length < 2;
+      allBtn.textContent = `Download all ${found.length}`;
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const urls = [...new Set(field.value.split(/[\s,]+/).filter(Boolean))];
+      if (!urls.length) {
+        setStatus('Paste at least one pin link.', true);
+        field.focus();
+        return;
+      }
+      goBtn.disabled = true;
+      board.replaceChildren();
+      toolbar.hidden = true;
+      setStatus(`Looking up ${plural(urls.length, 'link')}…`);
+      try {
+        const response = await fetch('/api/lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ urls }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Lookup failed.');
+        render(data.results);
+      } catch (err) {
+        setStatus(err.message || "Couldn't reach the app. Is it still running?", true);
+      } finally {
+        goBtn.disabled = false;
+      }
+    });
+
+    field.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) form.requestSubmit();
+    });
+
+    allBtn.addEventListener('click', async () => {
+      allBtn.disabled = true;
+      for (const item of found) {
+        await saveItem(item);
+        await new Promise(r => setTimeout(r, 400));
+      }
+      allBtn.disabled = false;
+    });
+  </script>
+</body>
+</html>
